@@ -137,6 +137,7 @@ const update = (
     commitMsg,
     shouldPreprendDiscussionPosts,
     cb = undefined,
+    difficulty = undefined,
 ) => {
     let responseSHA;
     return getUpdatedData(token, hook, directory, filename)
@@ -239,7 +240,7 @@ function uploadGit(
 
 /* Gets updated GitHub data for the specific file in repo in question */
 async function getUpdatedData(token, hook, directory, filename) {
-    const URL = `https://api.github.com/repos/${hook}/contents/${directory}/${filename}`;
+    const URL = `https://api.github.com/repos/${hook}/contents/leetcode/${difficulty}/${directory}/${filename}`;
 
     let options = {
         method: 'GET',
@@ -999,21 +1000,33 @@ const loader = (leetCode) => {
             leetCode.startSpinner();
 
             /* Upload README */
-            const updateReadMe = await chrome.storage.local.get('stats').then(({stats}) => {
-                const shaExists = stats?.shas?.[problemName]?.['README.md'] !== undefined;
+            // const updateReadMe = await chrome.storage.local.get('stats').then(({stats}) => {
+            //     const shaExists = stats?.shas?.[problemName]?.['README.md'] !== undefined;
+            //
+            //     if (!shaExists) {
+            //         return uploadGit(
+            //             btoa(unescape(encodeURIComponent(probStatement))),
+            //             problemName,
+            //             'README.md',
+            //             readmeMsg,
+            //             'upload',
+            //             false,
+            //             undefined,
+            //             difficulty,
+            //         );
+            //     }
+            // });
 
-                if (!shaExists) {
-                    return uploadGit(
-                        btoa(unescape(encodeURIComponent(probStatement))),
-                        problemName,
-                        'README.md',
-                        readmeMsg,
-                        'upload',
-                        false,
-                        difficulty,
-                    );
-                }
-            });
+            const updateReadMe = await uploadGit(
+                btoa(unescape(encodeURIComponent(probStatement))),
+                problemName,
+                'README.md',
+                readmeMsg,
+                'upload',
+                false,
+                undefined,
+                difficulty,
+            );
 
             // /* Upload Notes if any*/
             // notes = leetCode.getNotesIfAny();
