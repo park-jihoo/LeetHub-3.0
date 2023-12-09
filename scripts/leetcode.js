@@ -41,8 +41,8 @@ let difficulty = '';
 let uploadState = { uploading: false };
 
 /* Main function for uploading code to GitHub repo, and callback cb is called if success */
-const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undefined) => {
-  const URL = `https://api.github.com/repos/${hook}/contents/${problem}/${filename}`;
+const upload = (token, hook, code, problem, filename, sha, commitMsg, cb = undefined, difficulty=undefined) => {
+  const URL = `https://api.github.com/repos/${hook}/contents/leetcode/${difficulty}/${problem}/${filename}`;
 
   /* Define Payload */
   let data = {
@@ -171,7 +171,7 @@ function uploadGit(
   _diff = undefined,
 ) {
   // Assign difficulty
-  if (_diff && _diff !== undefined) {
+  if (_diff) {
     difficulty = _diff.trim();
   }
 
@@ -182,7 +182,7 @@ function uploadGit(
     .get('leethub_token')
     .then(({ leethub_token }) => {
       token = leethub_token;
-      if (leethub_token == undefined) {
+      if (leethub_token === undefined) {
         throw new Error('leethub token is undefined');
       }
       return chrome.storage.local.get('mode_type');
@@ -208,7 +208,7 @@ function uploadGit(
             ? stats.shas[problemName][fileName]
             : '';
 
-        return upload(token, hook, code, problemName, fileName, sha, commitMsg, cb);
+        return upload(token, hook, code, problemName, fileName, sha, commitMsg, cb, _diff);
       } else if (action === 'update') {
         return update(
           token,
@@ -219,6 +219,7 @@ function uploadGit(
           commitMsg,
           shouldPrependDiscussionPosts,
           cb,
+            _diff
         );
       }
     })
@@ -231,7 +232,7 @@ function uploadGit(
     })
     .then(data =>
       data != null
-        ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb)
+        ? upload(token, hook, code, problemName, fileName, data.sha, commitMsg, cb, _diff)
         : undefined,
     );
 }
@@ -691,6 +692,12 @@ LeetCodeV2.prototype.findAndUploadCode = function (
     throw new Error('No solution code found');
   }
 
+  const difficulty = this.parseDifficulty();
+
+  if(difficulty === 'unknown') {
+    throw new Error('Unknown difficulty');
+  }
+
   return uploadGit(
     btoa(unescape(encodeURIComponent(code))),
     problemName,
@@ -699,6 +706,7 @@ LeetCodeV2.prototype.findAndUploadCode = function (
     action,
     false,
     cb,
+      difficulty,
   );
 };
 LeetCodeV2.prototype.getCode = function () {
@@ -978,6 +986,8 @@ const loader = (leetCode) => {
         throw new Error('Could not find language');
       }
 
+      const difficulty = leetCode.parseDifficulty();
+
       // start upload indicator here
       leetCode.startSpinner();
 
@@ -997,19 +1007,19 @@ const loader = (leetCode) => {
         }
       });
 
-      /* Upload Notes if any*/
-      notes = leetCode.getNotesIfAny();
-      let updateNotes;
-      if (notes != undefined && notes.length > 0) {
-        updateNotes = uploadGit(
-          btoa(unescape(encodeURIComponent(notes))),
-          problemName,
-          'NOTES.md',
-          createNotesMsg,
-          'upload',
-          false,
-        );
-      }
+      // /* Upload Notes if any*/
+      // notes = leetCode.getNotesIfAny();
+      // let updateNotes;
+      // if (notes != undefined && notes.length > 0) {
+      //   updateNotes = uploadGit(
+      //     btoa(unescape(encodeURIComponent(notes))),
+      //     problemName,
+      //     'NOTES.md',
+      //     createNotesMsg,
+      //     'upload',
+      //     false,
+      //   );
+      // }
 
       /* Upload code to Git */
       const updateCode = leetCode.findAndUploadCode(
@@ -1019,7 +1029,9 @@ const loader = (leetCode) => {
         'upload',
       );
 
-      await Promise.all([updateReadMe, updateNotes, updateCode]);
+      await Promise.all([updateReadMe, updateCode]);
+
+      console.log('LeetHub: Uploaded to GitHub!')
 
       uploadState.uploading = false;
       leetCode.markUploaded();
